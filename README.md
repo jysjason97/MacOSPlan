@@ -115,7 +115,7 @@ python -m macplan verify --drive D:
 
 ---
 
-## 两个必须说清楚的边界
+## 三个必须说清楚的边界
 
 **① OpCore-Legacy-Patcher 不能用在 PC 上。**
 OCLP 是给**真 Mac**（2007 年起的旧机器）打补丁跑新系统的，它依赖苹果固件和原厂硬件。普通 PC 走的是 OpenCore + OpCore-Simplify 这条线，两者不是替代关系。
