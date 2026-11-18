@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "macplan"
-version = "1.0.0"
+version = "1.1.0"
 description = "黑苹果一键装机助手：硬件检测 → 版本推荐 → EFI 生成 → 启动盘制作"
 readme = "README.md"
 requires-python = ">=3.9"

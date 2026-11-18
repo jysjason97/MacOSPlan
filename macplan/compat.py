@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -69,10 +70,16 @@ AMD_SUPPORTED = ("RX 460", "RX 470", "RX 480", "RX 550", "RX 560", "RX 570", "RX
                  "RX 590", "RX 5500", "RX 5600", "RX 5700", "RX 6600", "RX 6800", "RX 6900")
 NVIDIA_UNSUPPORTED = ("GTX", "RTX", "MX", "Quadro", "GT ")
 
+# Stela：把 arm64 macOS 翻译成 x86-64 执行的路线，只认 NVIDIA 独显
+# 依据 https://github.com/tylertms/Stela 的 Hardware requirements
+STELA_GPU_RE = re.compile(r"(GTX\s*16|RTX\s*(20|30|40|50))", re.I)
+AMD_CPU_RE = re.compile(r"(Ryzen|Threadripper|EPYC|FX-|Bulldozer)", re.I)
+STELA_MIN_MEMORY_GB = 8
+
 
 @dataclass
 class Recommendation:
-    verdict: str                     # supported / workable / unsupported
+    verdict: str                     # supported / workable / stela / unsupported
     version: str | None
     version_name: str | None
     board_id: str | None
@@ -81,6 +88,8 @@ class Recommendation:
     risks: list[str] = field(default_factory=list)
     todos: list[str] = field(default_factory=list)
     wifi_mode: str | None = None     # itlwm / native / none
+    route: str = "opencore"          # opencore / stela / none
+    stela: dict[str, Any] | None = None
     data: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -89,13 +98,87 @@ class Recommendation:
             "version_name": self.version_name, "board_id": self.board_id,
             "smbios": self.smbios, "reasons": self.reasons, "risks": self.risks,
             "todos": self.todos, "wifi_mode": self.wifi_mode,
+            "route": self.route, "stela": self.stela,
         }
+
+
+def evaluate_stela(hw: dict) -> dict:
+    """判断这台机器能不能走 Stela（arm64 → x86-64 翻译层）。
+
+    只认 NVIDIA GTX 16 / RTX 20-50；AMD 显卡不在支持列表里。
+    """
+    cpu = str(hw.get("cpu") or "")
+    gpus = [str(g) for g in (hw.get("gpus") or [])]
+    nvidia = [g for g in gpus if STELA_GPU_RE.search(g)]
+    memory = float(hw.get("memory_gb") or 0)
+
+    reasons: list[str] = []
+    blockers: list[str] = []
+    todos: list[str] = []
+
+    if nvidia:
+        reasons.append(f"检测到 Stela 支持的 NVIDIA 显卡：{', '.join(nvidia)}")
+    else:
+        blockers.append("没有 GTX 16 / RTX 20-50 系列显卡：Stela 的 Metal 驱动只覆盖这一档 NVIDIA")
+
+    if memory >= STELA_MIN_MEMORY_GB:
+        reasons.append(f"内存 {memory:.0f}GB，满足 ≥8GB 要求")
+    else:
+        blockers.append(f"内存 {memory:.0f}GB，低于 Stela 要求的 8GB")
+
+    cpu_ok = True
+    if AMD_CPU_RE.search(cpu):
+        reasons.append("AMD x86-64 CPU（Bulldozer 及以后）在 Stela 的 CPU 支持范围内")
+    elif cpu:
+        reasons.append("Intel x86-64 CPU 在 Stela 的 CPU 支持范围内")
+
+    # 这些是 Stela 当前版本的硬缺口，不是配置问题
+    risks = [
+        "Wi-Fi / 蓝牙 / 音频目前完全没有驱动（README 明写 None currently supported）",
+        "性能损失大：arm64 指令要翻译成 x86-64 执行，日常使用明显偏慢",
+        "项目仍在开发中，官方说明「可能仍然无法在受支持的硬件上启动」",
+        "笔记本独显常走 Optimus / MUX，Stela 可能识别不到；台式机成功率更高",
+    ]
+    todos = [
+        "从 https://github.com/tylertms/Stela/releases 下载 stela.exe",
+        "准备 U 盘：在线安装 8GB，离线安装 32GB（会被清空）",
+        "双击 stela.exe → 选 U 盘和安装器 → 从 U 盘启动（Secure Boot 必须关）",
+        "起不来时用 stela.exe log --output log.txt 抓日志，提 Issue 用",
+    ]
+
+    return {
+        "eligible": not blockers,
+        "gpu": nvidia,
+        "cpu_ok": cpu_ok,
+        "reasons": reasons,
+        "blockers": blockers,
+        "risks": risks,
+        "todos": todos,
+        "link": "https://github.com/tylertms/Stela",
+    }
+
+
+def _apply_stela(rec: Recommendation, stela: dict, lead: str) -> Recommendation:
+    rec.route = "stela"
+    rec.verdict = "stela"
+    rec.version = None
+    rec.version_name = "macOS (arm64，由 Stela 翻译执行)"
+    rec.board_id = None
+    rec.smbios = "Stela 模拟 M2 Mac mini（不需要 SMBIOS）"
+    rec.reasons = [lead] + stela["reasons"]
+    rec.risks = stela["risks"]
+    rec.todos = stela["todos"]
+    rec.stela = stela
+    return rec
 
 
 def _wifi_advice(networks: list[str]) -> tuple[str | None, list[str], list[str]]:
     names = " | ".join(networks).lower()
     risks: list[str] = []
     todos: list[str] = []
+    # 只对真正的无线网卡给建议，别把 Intel 有线网卡（I219 之类）当成 Wi-Fi
+    if not any(k in names for k in ("wi-fi", "wifi", "wireless", "wlan", "802.11")):
+        return None, risks, todos
     if "intel" in names:
         todos.append("Wi-Fi 用 itlwm + HeliPort；装完按说明书清除 Info.plist 里的明文密码")
         risks.append("Intel 网卡无 AWDL：隔空投送 / 接力 / 通用控制 / 随航 / 定位 全部不可用")
@@ -140,6 +223,7 @@ def evaluate(hw: dict) -> Recommendation:
     gen = cpu_generation(cpu)
     gpus = [str(g) for g in (hw.get("gpus") or [])]
     networks = [str(n) for n in (hw.get("networks") or [])]
+    stela = evaluate_stela(hw)
 
     rec = Recommendation(verdict="unsupported", version=None, version_name=None,
                          board_id=None, smbios=None, data=hw)
@@ -151,7 +235,10 @@ def evaluate(hw: dict) -> Recommendation:
     rec.todos.extend(wifi_todos)
 
     if gen == 0:
-        rec.reasons.append("AMD 平台：macOS 没有可用核显驱动，本项目不提供方案")
+        rec.reasons.append("AMD 平台：OpenCore + Intel 核显这套方案不适用")
+        if stela["eligible"]:
+            return _apply_stela(rec, stela, "AMD 平台走不了常规 OpenCore 路线，但可以走 Stela")
+        rec.reasons.extend(stela["blockers"])
         rec.verdict = "unsupported"
         return rec
 
@@ -162,10 +249,11 @@ def evaluate(hw: dict) -> Recommendation:
 
     if gen not in INTEL_TABLE:
         rec.reasons.append(f"检测到 {', '.join(gpus) or '未知显卡'}")
-        rec.reasons.append(
-            f"第 {gen} 代（含 Core Ultra / Arrow Lake 等新平台）：macOS 没有对应核显驱动，"
-            "且开源社区尚无成熟方案。装上也用不了图形加速，不建议投入时间"
-        )
+        lead = (f"第 {gen} 代（含 Core Ultra / Arrow Lake 等新平台）在 OpenCore 上没有可用核显驱动")
+        if stela["eligible"]:
+            return _apply_stela(rec, stela, lead + "，但可以用 Stela")
+        rec.reasons.append(lead + "，开源社区也还没有成熟方案")
+        rec.reasons.extend(stela["blockers"])
         rec.verdict = "unsupported"
         return rec
 
@@ -176,6 +264,8 @@ def evaluate(hw: dict) -> Recommendation:
     rec.reasons.append(note)
 
     if version == "unsupported" or not gfx_ok:
+        if stela["eligible"]:
+            return _apply_stela(rec, stela, "核显不可驱动，改用 Stela（它只需要 NVIDIA 独显）")
         rec.verdict = "unsupported"
         if not gfx_ok:
             rec.reasons.append("图形不可驱动是硬门槛：装上也只是一块没有加速的屏幕")
@@ -201,11 +291,20 @@ def evaluate(hw: dict) -> Recommendation:
 
 
 def render(rec: Recommendation) -> str:
-    icon = {"supported": "✅", "workable": "⚠️", "unsupported": "❌"}[rec.verdict]
-    lines = [f"{icon} 结论：{rec.verdict}"]
-    if rec.version:
+    icon = {"supported": "✅", "workable": "⚠️", "stela": "🧭", "unsupported": "❌"}[rec.verdict]
+    title = {"supported": "可用", "workable": "勉强可用",
+             "stela": "可走 Stela（实验性路线）", "unsupported": "不建议"}[rec.verdict]
+    lines = [f"{icon} 结论：{title}"]
+
+    if rec.route == "stela" and rec.stela:
+        lines.append("   路线：Stela —— 把 arm64 macOS 翻译成 x86-64 执行")
+        lines.append(f"   项目：{rec.stela['link']}")
+        lines.append(f"   目标：{rec.version_name}")
+        lines.append(f"   模拟机型：{rec.smbios}")
+    elif rec.version:
         lines.append(f"   推荐系统：macOS {rec.version_name}（{rec.version}）")
         lines.append(f"   SMBIOS：{rec.smbios}    恢复镜像 board-id：{rec.board_id or '需手工核对'}")
+
     if rec.reasons:
         lines.append("   依据：")
         lines.extend(f"     · {r}" for r in rec.reasons)

@@ -24,6 +24,7 @@ MacPlan 是一个 Windows 端工具：**检测硬件 → 推荐 macOS 版本 →
 | Wi-Fi 装完连不上，或者密码明文躺在 EFI 里 | 安装期用 itlwm 预置，装完提醒切 HeliPort 并把明文清掉 |
 | 装完拔了 U 盘开不了机 | 校验硬盘 ESP 里到底有没有 `EFI/OC/OpenCore.efi`，而不是看 `nvram` |
 | 装完没声音 / 触控板不动 | 装后体检脚本逐项给判据，避免「设备在、功能死」的误判 |
+| 新平台 / 只有 NVIDIA 独显，OpenCore 完全没戏 | 判定是否满足 **Stela** 条件（GTX 16 / RTX 20-50 + ≥8GB 内存），给出一条替代路线 |
 
 ---
 
@@ -122,6 +123,11 @@ OCLP 是给**真 Mac**（2007 年起的旧机器）打补丁跑新系统的，�
 **② 不是所有机器都能装。**
 没有可驱动的核显、也没有受支持的 AMD 独显的机器，macOS 装上也只是「能开机但没图形加速」，没有实用价值。MacPlan 遇到这种情况会直接给出劝退结论和硬件依据，而不是让你白折腾一天。
 
+**③ 但有一条「新平台 / NVIDIA 独显」的替代路线：Stela。**
+[Stela](https://github.com/tylertms/Stela) 不装原生 x86 macOS，而是把 **arm64 macOS 翻译成 x86-64 执行**，自己模拟成一台 M2 Mac mini。
+它只认 **NVIDIA GTX 16 / RTX 20/30/40/50 系列**（AMD 显卡不在支持列表里）——所以「AMD 显卡也能走 Stela」是误解。
+代价很大：**Wi-Fi / 蓝牙 / 音频目前都没有驱动**，性能有明显损失，项目也还在开发中。MacPlan 判定符合条件时会明确告诉你这是实验性路线，而不是推荐你直接日常使用。
+
 ---
 
 ## 装完之后
@@ -166,12 +172,13 @@ bash scripts/macos_doctor.sh
 
 ## 参考与致谢
 
-这个项目站在两个开源项目的肩膀上，装机前请先把它们收进书签：
+这个项目站在几个开源项目的肩膀上，装机前请先把它们收进书签：
 
 | 项目 | 地址 | MacPlan 怎么用它 |
 |---|---|---|
 | **OpCore-Simplify** | https://github.com/lzhoang2801/OpCore-Simplify | 真正生成 OpenCore EFI 的引擎。MacPlan 调用它、自动应答菜单，再补上 `DmgLoading` / `ScanPolicy` / `SecureBootModel` 三个安装期必改项 |
 | **OpenCore-Legacy-Patcher** | https://github.com/dortania/OpenCore-Legacy-Patcher | 给**真 Mac**（2007 年起的旧机器）打补丁跑新系统。⚠️ 它**不能**用在普通 PC 上，PC 走的是 OpenCore + OpCore-Simplify 这条线 |
+| **Stela** | https://github.com/tylertms/Stela | 新平台 / 只有 NVIDIA 独显时的替代路线：把 arm64 macOS 翻译到 x86-64，模拟 M2 Mac mini。MacPlan 只做**条件判定**，启动盘由 Stela 自己的安装器制作 |
 
 另外两个间接依赖：镜像下载用 [OpenCorePkg 的 macrecovery](https://github.com/acidanthera/OpenCorePkg/tree/master/Utilities/macrecovery)，配置规范参考 [Dortania 的 OpenCore Install Guide](https://dortania.github.io/OpenCore-Install-Guide/)。
 

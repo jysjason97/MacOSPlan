@@ -135,6 +135,14 @@ def wizard() -> int:
     if rec.verdict == "unsupported":
         print("\n❌ 这台机器不建议安装。上面的依据已经说明原因，继续只会浪费时间。")
         return 2
+    if rec.route == "stela":
+        print("\n🧭 这台机器走 Stela 路线（arm64 翻译层），不是 OpenCore。")
+        print("   Stela 有自己的安装器，MacPlan 不替它做盘，按下面步骤操作：")
+        for i, t in enumerate(rec.todos, 1):
+            print(f"   {i}. {t}")
+        print(f"\n   项目主页：{rec.stela['link']}")
+        print("   注意：Wi-Fi / 蓝牙 / 音频目前都没有驱动，且项目仍在开发中。")
+        return 0
     if not _yes("按上面的结论继续", default=True):
         return 0
 
