@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "macplan"
+version = "1.0.0"
+description = "黑苹果一键装机助手：硬件检测 → 版本推荐 → EFI 生成 → 启动盘制作"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "jysjason97" }]
+keywords = ["hackintosh", "opencore", "macos", "usb"]
+classifiers = [
+  "Environment :: Console",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Homepage = "https://github.com/jysjason97/macplan"
+
+[project.scripts]
+macplan = "macplan.cli:main"
+
+[project.optional-dependencies]
+dev = ["pyinstaller>=6.0"]
+
+[tool.setuptools]
+packages = ["macplan"]
