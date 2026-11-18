@@ -19,7 +19,7 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jysjason97/macplan"
+Homepage = "https://github.com/jysjason97/MacOSPlan"
 
 [project.scripts]
 macplan = "macplan.cli:main"

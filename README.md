@@ -63,8 +63,8 @@ flowchart TD
 ### 2. 从源码跑
 
 ```powershell
-git clone https://github.com/jysjason97/macplan.git
-cd macplan
+git clone https://github.com/jysjason97/MacOSPlan.git
+cd MacOSPlan
 python -m macplan            # 交互式向导
 ```
 
