@@ -12,7 +12,11 @@ import urllib.request
 from pathlib import Path
 
 APP_NAME = "MacPlan"
-REPO_ROOT = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False):
+    # 打包成 exe 后，工作目录就是 exe 所在目录，不能指向临时解包目录
+    REPO_ROOT = Path(sys.executable).resolve().parent
+else:
+    REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = REPO_ROOT / ".cache"
 TOOLS_DIR = REPO_ROOT / "tools"
 LOG_DIR = REPO_ROOT / "logs"

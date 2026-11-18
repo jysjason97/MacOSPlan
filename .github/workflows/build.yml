@@ -25,7 +25,7 @@ jobs:
       - name: Build onefile exe
         run: |
           pip install pyinstaller
-          pyinstaller --onefile --name MacPlan --console --clean macplan/__main__.py
+          pyinstaller --onefile --name MacPlan --console --clean launcher.py
 
       - name: Smoke test
         run: dist/MacPlan.exe --help

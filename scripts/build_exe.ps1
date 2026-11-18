@@ -15,7 +15,7 @@ python -m pip install .
 python -m pip install pyinstaller
 
 Write-Host "[3/4] 打包" -ForegroundColor Cyan
-python -m PyInstaller --onefile --name MacPlan --console --clean macplan/__main__.py
+python -m PyInstaller --onefile --name MacPlan --console --clean launcher.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller 打包失败" }
 
 Write-Host "[4/4] 冒烟测试" -ForegroundColor Cyan
