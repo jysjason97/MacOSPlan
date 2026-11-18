@@ -22,3 +22,4 @@ __pycache__/
 EFI/
 *.plist.bak
 *.bak
+docs/assets/_contact-sheet.png
