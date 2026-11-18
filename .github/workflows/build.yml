@@ -7,6 +7,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# 创建 Release 需要写权限，默认的 read 会让 softprops/action-gh-release 报 403
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
