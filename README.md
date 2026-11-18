@@ -164,6 +164,19 @@ bash scripts/macos_doctor.sh
 
 ---
 
+## 参考与致谢
+
+这个项目站在两个开源项目的肩膀上，装机前请先把它们收进书签：
+
+| 项目 | 地址 | MacPlan 怎么用它 |
+|---|---|---|
+| **OpCore-Simplify** | https://github.com/lzhoang2801/OpCore-Simplify | 真正生成 OpenCore EFI 的引擎。MacPlan 调用它、自动应答菜单，再补上 `DmgLoading` / `ScanPolicy` / `SecureBootModel` 三个安装期必改项 |
+| **OpenCore-Legacy-Patcher** | https://github.com/dortania/OpenCore-Legacy-Patcher | 给**真 Mac**（2007 年起的旧机器）打补丁跑新系统。⚠️ 它**不能**用在普通 PC 上，PC 走的是 OpenCore + OpCore-Simplify 这条线 |
+
+另外两个间接依赖：镜像下载用 [OpenCorePkg 的 macrecovery](https://github.com/acidanthera/OpenCorePkg/tree/master/Utilities/macrecovery)，配置规范参考 [Dortania 的 OpenCore Install Guide](https://dortania.github.io/OpenCore-Install-Guide/)。
+
+---
+
 ## 许可与免责
 
 代码 MIT。**macOS 的软件许可只允许安装在苹果硬件上**，本项目仅作个人研究与技术学习用途，使用者自行承担全部风险：包括但不限于数据丢失、硬件损坏、保修失效、系统不稳定。
